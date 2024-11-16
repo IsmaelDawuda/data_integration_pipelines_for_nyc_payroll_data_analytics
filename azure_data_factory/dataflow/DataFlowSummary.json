@@ -1,0 +1,140 @@
+{
+	"name": "DataFlowSummary",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_sqldb_nyc_payroll_data_2020",
+						"type": "DatasetReference"
+					},
+					"name": "sourcePayroll2020"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_sqldb_nyc_payroll_data_2021",
+						"type": "DatasetReference"
+					},
+					"name": "sourcePayroll2021"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_sqldb_nyc_payroll_summary",
+						"type": "DatasetReference"
+					},
+					"name": "sinkSummarytable"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_adls_dirstaging",
+						"type": "DatasetReference"
+					},
+					"name": "sinkDirstaging"
+				}
+			],
+			"transformations": [
+				{
+					"name": "unionPayroll2020and2021"
+				},
+				{
+					"name": "applyFilter"
+				},
+				{
+					"name": "TotalPaid"
+				},
+				{
+					"name": "aggregateTotalPaid"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     dataflow_param_fiscal_year as integer (2021),",
+				"     dataflow_param_fiscalyear as integer (2021)",
+				"}",
+				"source(output(",
+				"          FiscalYear as integer,",
+				"          PayrollNumber as integer,",
+				"          AgencyID as string,",
+				"          AgencyName as string,",
+				"          EmployeeID as string,",
+				"          LastName as string,",
+				"          FirstName as string,",
+				"          AgencyStartDate as date,",
+				"          WorkLocationBorough as string,",
+				"          TitleCode as string,",
+				"          TitleDescription as string,",
+				"          LeaveStatusasofJune30 as string,",
+				"          BaseSalary as double,",
+				"          PayBasis as string,",
+				"          RegularHours as double,",
+				"          RegularGrossPaid as double,",
+				"          OTHours as double,",
+				"          TotalOTPaid as double,",
+				"          TotalOtherPay as double",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> sourcePayroll2020",
+				"source(output(",
+				"          FiscalYear as integer,",
+				"          PayrollNumber as integer,",
+				"          AgencyCode as string,",
+				"          AgencyName as string,",
+				"          EmployeeID as string,",
+				"          LastName as string,",
+				"          FirstName as string,",
+				"          AgencyStartDate as date,",
+				"          WorkLocationBorough as string,",
+				"          TitleCode as string,",
+				"          TitleDescription as string,",
+				"          LeaveStatusasofJune30 as string,",
+				"          BaseSalary as double,",
+				"          PayBasis as string,",
+				"          RegularHours as double,",
+				"          RegularGrossPaid as double,",
+				"          OTHours as double,",
+				"          TotalOTPaid as double,",
+				"          TotalOtherPay as double",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> sourcePayroll2021",
+				"sourcePayroll2020, sourcePayroll2021 union(byName: true)~> unionPayroll2020and2021",
+				"unionPayroll2020and2021 filter(toInteger(FiscalYear)>=$dataflow_param_fiscal_year) ~> applyFilter",
+				"applyFilter derive(TotalPaid = RegularGrossPaid + TotalOTPaid + TotalOtherPay) ~> TotalPaid",
+				"TotalPaid aggregate(groupBy(AgencyName,",
+				"          FiscalYear),",
+				"     aggregateTotalPaid = sum(TotalPaid)) ~> aggregateTotalPaid",
+				"aggregateTotalPaid sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          FiscalYear as integer,",
+				"          AgencyName as string,",
+				"          TotalPaid as double",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     truncate:true,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sinkSummarytable",
+				"aggregateTotalPaid sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     truncate: true,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkDirstaging"
+			]
+		}
+	}
+}
