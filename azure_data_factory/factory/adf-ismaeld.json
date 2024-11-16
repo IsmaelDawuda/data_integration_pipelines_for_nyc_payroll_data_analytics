@@ -1,0 +1,9 @@
+{
+	"name": "adf-ismaeld",
+	"location": "centralus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "42014bf8-1eb8-4941-a994-3aa1f25e2977",
+		"tenantId": "b6c42e72-732f-4a91-953e-00791f650ac6"
+	}
+}
